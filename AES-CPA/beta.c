@@ -8,8 +8,8 @@
 #define ptFN "plaintext.txt"
 #define ctFN "ciphertext.txt"
 
-#define startpt	22000
-#define endpt 28000
+#define startpt	22551
+#define endpt 31050
 
 typedef unsigned char u8;
 
@@ -35,25 +35,27 @@ static u8 SBOX[256] =
 
 int main()
 {
-	u8**	plaintext = NULL;
+	u8**	PT = NULL;
 	u8		temp[34];
 	u8		iv, hw_iv; // 데이터의 해밍웨이터
-	double	maxcorr; // 상관계수 최대값(PEAK마다 바)
+	double	maxCorr; // 상관계수 최대값(PEAK마다 바)
 	double* corr;	// 코렐레이션 값
-	double	Sy;	  // 해밍웨이트의 합, 전력량의 합
-	double	Syy, *Sxx; // 해밍웨이트 제곱들의 합, 전력량의 제곱들의 합
-	double	*Sxy;		// 해밍 x 전력의 합
-	double  *Sx; // 실제 전력값들의 합, 전력값들 제곱의 합
+	double	HW;	  // 해밍웨이트의 합, 전력량의 합
+	double	HW_2, *WT_2; // 해밍웨이트 제곱들의 합, 전력량의 제곱들의 합
+	double	*hw_wt;		// 해밍 x 전력의 합
+	double  *WT; // 실제 전력값들의 합, 전력값들 제곱의 합
 	double	a, b, c;
-	float** data;  // 파동을 전체 저장할 데이터
+	float** WT_data;  // 파동을 전체 저장할 데이터
 	int		TraceNum, TraceLength;
 	int		key, maxkey;
 	int		x, y;	      // plaintext 파일 가져올 때 쓰이는 변수
 	int		i, j, k;	  // 반복문에 쓰이는 변수
 	char	buf[256];	  // 파일 디렉토리를 덮어 쓸 임시값
+	double	cur, all;
+	u8		show[50];
 	FILE*	rfp, * wfp;
 	
-
+	memset(show, '?', sizeof(u8) * 40);
 	// DATA
 	sprintf(buf, "%s%s", DIR, traceFN);
 	rfp = fopen(buf, "rb");
@@ -64,13 +66,13 @@ int main()
 	fread(&TraceNum, sizeof(int), 1, rfp);	  // TraceNum을 int 크기 만큼 한번 읽는다 (4bytes)	
 	
 	// DATA 동적 할당
-	data = (float**)calloc(TraceNum, sizeof(float*));
+	WT_data = (float**)calloc(TraceNum, sizeof(float*));
 	for (i = 0 ; i < TraceNum; i++)
-		data[i] = (float*)calloc(TraceLength, sizeof(float));
+		WT_data[i] = (float*)calloc(TraceLength, sizeof(float));
 	
 	// DATA 
 	for (i = 0; i < TraceNum; i++) {
-		fread(data[i], sizeof(float), TraceLength, rfp);
+		fread(WT_data[i], sizeof(float), TraceLength, rfp);
 	}
 	fclose(rfp);
 
@@ -80,13 +82,13 @@ int main()
 	if (rfp == NULL)
 		printf("%s 파일 읽기 오류", ptFN);
 
-	plaintext = (u8**)calloc(TraceNum, sizeof(u8*)); // 역참조 : 값 넣어주면 안정화
+	PT = (u8**)calloc(TraceNum, sizeof(u8*)); // 역참조 : 값 넣어주면 안정화
 	for (i = 0; i < TraceNum; i++)
-		plaintext[i] = (u8*)calloc(16, sizeof(u8));
+		PT[i] = (u8*)calloc(16, sizeof(u8));
 	
 	// ptFN 가공
 	for (i = 0; i < TraceNum; i++) {
-		fread(temp, sizeof(char), 34, rfp);
+		fread(temp, sizeof(char), 33, rfp);
 		for(j = 0 ; j < 16 ; j++) {
 			x = temp[2 * j];
 			y = temp[2 * j + 1];
@@ -99,77 +101,80 @@ int main()
 			else if (y >= 'A'&& y <= 'Z') y = y - 'A' + 10;
 			else if (y >= '0' && y <= '9') y -= '0';
 
-			plaintext[i][j] = x * 16 + y;
+			PT[i][j] = x * 16 + y;
 		}
 	}
-	
+
+
 	corr = (double*)calloc(TraceLength, sizeof(double));
-	Sx = (double*)calloc(TraceLength, sizeof(double));
-	Sxx = (double*)calloc(TraceLength, sizeof(double));
-	Sxy = (double*)calloc(TraceLength, sizeof(double));
+	WT = (double*)calloc(TraceLength, sizeof(double));
+	WT_2 = (double*)calloc(TraceLength, sizeof(double));
+	hw_wt = (double*)calloc(TraceLength, sizeof(double));
 
 	for (i = 0; i < TraceNum; i++)
 	{
 		for (j = startpt; j < endpt; j++) {
-			Sx[j] += (double)data[i][j];
-			Sxx[j] += (double)data[i][j] * (double)data[i][j];
+			WT[j] += WT_data[i][j];
+			WT_2[j] += WT_data[i][j] * WT_data[i][j];
 		}
 	}
 
-	for (int block = 0; block < 16 ; block++)
+	for (int i = 0; i < 16 ; i++)
 	{
-		maxcorr = 0;
+		maxCorr = 0;
 		maxkey = 0;
 		for (key = 0 ; key < 256; key++) {
-			Sy = 0;
-			Syy = 0;
-			memset(Sxy, 0, TraceLength, sizeof(double));
+			HW = 0;
+			HW_2 = 0;
+			memset(hw_wt, 0, sizeof(double)*TraceLength);
 			for (j = 0; j < TraceNum; j++) { // hw 구하는 곳
-				iv = SBOX[plaintext[j][block] ^ key]; // 공격지점, 배열 인자 실수 조심
+				iv = SBOX[PT[j][i] ^ key]; // 공격지점, 배열 인자 실수 조심
 				hw_iv = 0;
-				for (k = 0; k < 8; k++)
-					hw_iv += ((iv >> k) & 1);
+				for (k = 0; k < 8; k++) hw_iv += ((iv >> k) & 1);
 			
-				Sy += hw_iv;
-				Syy += (double)hw_iv * (double)hw_iv; // 오버플로우 방지 스카우트
+				HW += hw_iv;
+				HW_2 += hw_iv * hw_iv; // 오버플로우 방지 스카우트
 				
 				for (k = startpt; k < endpt; k++) {
-					Sxy[k] += (double)hw_iv * (double)data[j][k];
+					hw_wt[k] += hw_iv * WT_data[j][k];
 				}
-
 			}
 
 			for (j = startpt; j < endpt; j++) { // 상관계수 구하는 곳
-				a = (double)TraceNum * Sxy[j] - Sx[j] * Sy;
-				b = (double)TraceNum * Sxx[j] - Sx[j] * Sx[j];
-				c = (double)TraceNum * Syy - Sy * Sy;
 
-				corr[j] = a / (sqrt(b) * sqrt(c));
-				if (fabs(corr[j]) > maxcorr) {
+				a = (double)TraceNum * hw_wt[j] - WT[j] * HW;
+				b = sqrt((double)TraceNum * WT_2[j] - WT[j] * WT[j]);
+				c = sqrt((double)TraceNum * HW_2 - HW * HW);
+
+				//printf("%lf %lf %lf\n", a, b, c);
+
+				corr[j] = a / (b * c);
+				if (fabs(corr[j]) > maxCorr) {
 					maxkey = key;
-					maxcorr = fabs(corr[j]);
+					maxCorr = fabs(corr[j]);
 				}
-			}
 
-			sprintf(buf, "%scorrtrace\\%02dth_block_%02d(%02x).corrtrace", DIR, block, key, key);
+			}
+			printf("\rProgress %.1lf%%  |  %02dth Block : %.1lf%%", ((double)key / 255) * 100 * (i + 1) / 16, i, ((double)key / 255) * 100);
+
+			sprintf(buf, "%scorrtrace\\%02dth_block_%02d(%02x).corrtrace", DIR, i, key, key);
 			wfp = fopen(buf, "wb");
 			if (wfp == NULL)
 				printf("블록 쓰기 에러\n");
 			fwrite(corr, sizeof(double), TraceLength, wfp);
 			fclose(wfp);
-			printf(".");
+			
 			fflush(stdout);
 		}
-		printf("%d Block | KEY : %02x | CORR : %lf\n", block, maxkey, maxcorr);
-
+		printf("\n%02dth Block KEY Detected \n      KEY : %02X   |   CORR : %lf\n", i, maxkey, maxCorr);
+	
 
 	}
-	free(plaintext);
-	free(Sxy);
-	free(Sx);
-	free(Sxx);
-	free(data);
+	system("pause");
+	free(PT);
+	free(hw_wt);
+	free(WT);
+	free(WT_2);
+	free(WT_data);
 	free(corr);
-
-
 }
