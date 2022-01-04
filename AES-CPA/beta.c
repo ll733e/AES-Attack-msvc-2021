@@ -2,15 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#define _CRT_SECURE_NO_WARNINGS
 
 #define DIR "C:\\Users\\louxsoen\\Documents\\부채널연구\\AES CPA\\"
 #define traceFN "a.traces"
 #define ptFN "plaintext.txt"
 #define ctFN "ciphertext.txt"
 
-#define startpt	21000
-#define endpt 31000
+#define startpt	22000
+#define endpt 28000
 
 typedef unsigned char u8;
 
@@ -70,8 +69,7 @@ int main()
 		data[i] = (float*)calloc(TraceLength, sizeof(float));
 	
 	// DATA 
-	for (i = 0; i < TraceNum; i++)
-	{
+	for (i = 0; i < TraceNum; i++) {
 		fread(data[i], sizeof(float), TraceLength, rfp);
 	}
 	fclose(rfp);
@@ -87,11 +85,9 @@ int main()
 		plaintext[i] = (u8*)calloc(16, sizeof(u8));
 	
 	// ptFN 가공
-	for (i = 0; i < TraceNum; i++)
-	{
+	for (i = 0; i < TraceNum; i++) {
 		fread(temp, sizeof(char), 34, rfp);
-		for(j = 0 ; j < 16 ; j++)
-		{
+		for(j = 0 ; j < 16 ; j++) {
 			x = temp[2 * j];
 			y = temp[2 * j + 1];
 				
@@ -114,10 +110,9 @@ int main()
 
 	for (i = 0; i < TraceNum; i++)
 	{
-		for (j = startpt; j < endpt; j++)
-		{
-			Sx[j] += data[i][j];
-			Sxx[j] += data[i][j] * data[i][j];
+		for (j = startpt; j < endpt; j++) {
+			Sx[j] += (double)data[i][j];
+			Sxx[j] += (double)data[i][j] * (double)data[i][j];
 		}
 	}
 
@@ -125,37 +120,32 @@ int main()
 	{
 		maxcorr = 0;
 		maxkey = 0;
-		for (key = 0 ; key < 256; key++)
-		{
+		for (key = 0 ; key < 256; key++) {
 			Sy = 0;
 			Syy = 0;
-			memset(Sxy, 0, sizeof(double) * TraceLength);
-			for (j = 0; j < TraceNum; j++) // hw 구하는 곳
-			{
+			memset(Sxy, 0, TraceLength, sizeof(double));
+			for (j = 0; j < TraceNum; j++) { // hw 구하는 곳
 				iv = SBOX[plaintext[j][block] ^ key]; // 공격지점, 배열 인자 실수 조심
 				hw_iv = 0;
 				for (k = 0; k < 8; k++)
 					hw_iv += ((iv >> k) & 1);
 			
 				Sy += hw_iv;
-				Syy += hw_iv * hw_iv; // 오버플로우 방지 스카우트
+				Syy += (double)hw_iv * (double)hw_iv; // 오버플로우 방지 스카우트
 				
-				for (k = startpt; k < endpt; k++)
-				{
-					Sxy[k] += hw_iv * data[j][k];
+				for (k = startpt; k < endpt; k++) {
+					Sxy[k] += (double)hw_iv * (double)data[j][k];
 				}
 
 			}
 
-			for (j = startpt; j < endpt; j++) // 상관계수 구하는 곳
-			{
-				a = (double)TraceNum * Sxy[j] - (Sx[j] * Sy);
-				b = sqrt((double)TraceNum * Sxx[j] - (Sx[j] * Sx[j]));
-				c = sqrt((double)TraceNum * Syy - (Sy * Sy));
+			for (j = startpt; j < endpt; j++) { // 상관계수 구하는 곳
+				a = (double)TraceNum * Sxy[j] - Sx[j] * Sy;
+				b = (double)TraceNum * Sxx[j] - Sx[j] * Sx[j];
+				c = (double)TraceNum * Syy - Sy * Sy;
 
-				corr[j] = a / (b * c);
-				if (fabs(corr[j]) > maxcorr)
-				{
+				corr[j] = a / (sqrt(b) * sqrt(c));
+				if (fabs(corr[j]) > maxcorr) {
 					maxkey = key;
 					maxcorr = fabs(corr[j]);
 				}
@@ -164,9 +154,7 @@ int main()
 			sprintf(buf, "%scorrtrace\\%02dth_block_%02d(%02x).corrtrace", DIR, block, key, key);
 			wfp = fopen(buf, "wb");
 			if (wfp == NULL)
-			{
 				printf("블록 쓰기 에러\n");
-			}
 			fwrite(corr, sizeof(double), TraceLength, wfp);
 			fclose(wfp);
 			printf(".");
