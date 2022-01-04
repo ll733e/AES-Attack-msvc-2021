@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <Windows.h>
 
 #define DIR "C:\\Users\\louxsoen\\Documents\\부채널연구\\AES CPA\\"
 #define traceFN "a.traces"
@@ -33,6 +34,13 @@ static u8 SBOX[256] =
 	0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
 
+void gotoxy(int x, int y)
+{
+	COORD Pos = { x - 1, y - 1 };
+
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), Pos);
+}
+
 int main()
 {
 	u8**	PT = NULL;
@@ -52,10 +60,9 @@ int main()
 	int		i, j, k;	  // 반복문에 쓰이는 변수
 	char	buf[256];	  // 파일 디렉토리를 덮어 쓸 임시값
 	double	cur, all;
-	u8		show[50];
+	u8		littlebuf;
 	FILE*	rfp, * wfp;
-	
-	memset(show, '?', sizeof(u8) * 40);
+	printf("\n    IA&AI Sec LAB");
 	// DATA
 	sprintf(buf, "%s%s", DIR, traceFN);
 	rfp = fopen(buf, "rb");
@@ -155,20 +162,41 @@ int main()
 				}
 
 			}
+			gotoxy(25, 25);
 			printf("\rProgress %.1lf%%  |  %02dth Block : %.1lf%%", ((double)key / 255) * 100 * (i + 1) / 16, i, ((double)key / 255) * 100);
 
 			sprintf(buf, "%scorrtrace\\%02dth_block_%02d(%02x).corrtrace", DIR, i, key, key);
+			fflush(stdout);
 			wfp = fopen(buf, "wb");
 			if (wfp == NULL)
 				printf("블록 쓰기 에러\n");
 			fwrite(corr, sizeof(double), TraceLength, wfp);
 			fclose(wfp);
 			
-			fflush(stdout);
 		}
-		printf("\n%02dth Block KEY Detected \n      KEY : %02X   |   CORR : %lf\n", i, maxkey, maxCorr);
-	
-
+		
+		if (i == 0)
+		{
+			gotoxy(1, 1);
+			printf("\n\n=====================================\n\n   KEY : ");
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 11);
+			printf("0x%02X", maxkey);
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
+			printf("       CORR :");
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 14);
+			printf("%lf", maxCorr);
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
+		}
+		else if(i <= 16) {
+			gotoxy(10, i + 5);
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 11);
+			printf("0x%02X", maxkey);
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
+			printf("       CORR :");
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 14);
+			printf("%lf", maxCorr);
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
+		}
 	}
 	system("pause");
 	free(PT);
