@@ -15,7 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="beta.c">
+    <ClCompile Include="Aligned.c">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="CPA.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

@@ -9,8 +9,8 @@
 #define ptFN "plaintext.txt"
 #define ctFN "ciphertext.txt"
 
-#define startpt	22551
-#define endpt 31050
+#define startpt	0
+#define endpt 73200
 
 typedef unsigned char u8;
 
@@ -46,6 +46,7 @@ int main()
 	u8**	PT = NULL;
 	u8		temp[34];
 	u8		iv, hw_iv; // 데이터의 해밍웨이터
+	u8		MK[16];	 // 추출한 마스터키
 	double	maxCorr; // 상관계수 최대값(PEAK마다 바)
 	double* corr;	// 코렐레이션 값
 	double	HW;	  // 해밍웨이트의 합, 전력량의 합
@@ -60,7 +61,6 @@ int main()
 	int		i, j, k;	  // 반복문에 쓰이는 변수
 	char	buf[256];	  // 파일 디렉토리를 덮어 쓸 임시값
 	double	cur, all;
-	u8		littlebuf;
 	FILE*	rfp, * wfp;
 	printf("\n    IA&AI Sec LAB");
 	// DATA
@@ -144,7 +144,7 @@ int main()
 				
 				for (k = startpt; k < endpt; k++) {
 					hw_wt[k] += hw_iv * WT_data[j][k];
-				}
+				} 
 			}
 
 			for (j = startpt; j < endpt; j++) { // 상관계수 구하는 곳
@@ -163,7 +163,7 @@ int main()
 
 			}
 			gotoxy(25, 25);
-			printf("\rProgress %.1lf%%  |  %02dth Block : %.1lf%%", ((double)key / 255) * 100 * (i + 1) / 16, i, ((double)key / 255) * 100);
+			printf("\rProgress %.1lf%%  |  %02dth Block : %.1lf%%", (((double)key / 255) * 100 / 16) + (100 / 16 * i), i, ((double)key / 255) * 100);
 
 			sprintf(buf, "%scorrtrace\\%02dth_block_%02d(%02x).corrtrace", DIR, i, key, key);
 			fflush(stdout);
@@ -197,8 +197,14 @@ int main()
 			printf("%lf", maxCorr);
 			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
 		}
+		MK[i] = maxkey;
 	}
-	system("pause");
+	printf("\n\n");
+
+	printf("MASTER KEY : 0x");
+	for (int i = 0; i < 16; i++)	printf("%02X", MK[i]);
+	puts("");
+
 	free(PT);
 	free(hw_wt);
 	free(WT);
