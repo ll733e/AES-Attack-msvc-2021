@@ -5,7 +5,7 @@
 #include <Windows.h>
 
 #define DIR "C:\\Users\\louxsoen\\Documents\\부채널연구\\AES CPA\\"
-#define traceFN "a.traces"
+#define traceFN "AES.traces"
 #define ptFN "plaintext.txt"
 #define ctFN "ciphertext.txt"
 
@@ -446,19 +446,18 @@ void CPA()
 
     fread(&TraceLength, sizeof(int), 1, rfp); // TraceLength를 int 크키 만큼 한번 읽는다 (4bytes)
     fread(&TraceNum, sizeof(int), 1, rfp);	  // TraceNum을 int 크기 만큼 한번 읽는다 (4bytes)
-
-    // DATA 동적 할당
+     // 데이터 이중 배열 동적할당
     WT_data = (float**)calloc(TraceNum, sizeof(float*));
     for (i = 0; i < TraceNum; i++)
         WT_data[i] = (float*)calloc(TraceLength, sizeof(float));
 
-    // DATA 
+    // 데이터 배열 읽기
     for (i = 0; i < TraceNum; i++) {
         fread(WT_data[i], sizeof(float), TraceLength, rfp);
     }
     fclose(rfp);
 
-    // PLAINTEXT
+    // plaintext.txt는 아스키코드 형태로 되어있는데 글자를 읽고 숫자로 변환해서 저장해야함
     sprintf(buf, "%s%s", DIR, ptFN);
     rfp = fopen(buf, "r"); // read binary가 아님. 무조건 r
     if (rfp == NULL)
@@ -470,7 +469,7 @@ void CPA()
 
     // ptFN 가공
     for (i = 0; i < TraceNum; i++) {
-        fread(temp, sizeof(char), 33, rfp);
+        fread(temp, sizeof(char), 33, rfp); // temp에 32 + 2바이트씩 받아오기 (OD OA까지)
         for (j = 0; j < 16; j++) {
             x = temp[2 * j];
             y = temp[2 * j + 1];
@@ -482,7 +481,7 @@ void CPA()
             if (y >= 'a' && y <= 'z') y = y - 'a' + 10;
             else if (y >= 'A' && y <= 'Z') y = y - 'A' + 10;
             else if (y >= '0' && y <= '9') y -= '0';
-
+            // temp 배열을 x, y로 가져와서 아스키코드에 있는 숫자를 16진수로 반환
             PT[i][j] = x * 16 + y;
         }
     }

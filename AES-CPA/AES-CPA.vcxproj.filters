@@ -17,8 +17,5 @@
     <ClCompile Include="CHECK.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="ali.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>
