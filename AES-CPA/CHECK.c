@@ -1,24 +1,15 @@
-#pragma comment(linker, "/SUBSYSTEM:CONSOLE") //콘솔프로그램으로 만들겠다고 명시 
-#pragma comment(lib, "gdiplus.lib") //gdiplus라이브러리
-
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <Windows.h>
-#include <sstream> //실행시간 출력을 위한 문자열스트림클래스 
-#include <chrono> //실행시간 측정을 위한 시간관련클래스 
-#include <windows.h> //windowsAPI사용을 위한 헤더
-#include <gdiplus.h> //gdiplus사용을 위한 헤더
-#include <conio.h> //_getch()함수사용을 위한 헤더
 
 #define DIR "C:\\Users\\louxsoen\\Documents\\부채널연구\\AES CPA\\"
 #define traceFN "a.traces"
 #define ptFN "plaintext.txt"
 #define ctFN "ciphertext.txt"
 
-#define startpt	22000
+#define startpt 22000
 #define endpt 28000
 
 #define MUL2(a) (a<<1)^(a&0x80?0x1b:0)
@@ -446,7 +437,7 @@ void CPA()
     char	buf[256];	  // 파일 디렉토리를 덮어 쓸 임시값
     double	cur, all;
     FILE* rfp, * wfp;
-    printf("\n   AES CORRERLATION POWER ANALYSIS");
+    printf("\n   AES CORRELATION POWER ANALYSIS");
     // DATA
     sprintf(buf, "%s%s", DIR, traceFN);
     rfp = fopen(buf, "rb");
@@ -519,6 +510,7 @@ void CPA()
             HW_2 = 0;
             memset(hw_wt, 0, sizeof(double) * TraceLength);
             for (j = 0; j < TraceNum; j++) { // hw 구하는 곳
+                
                 iv = Sbox[PT[j][i] ^ key]; // 공격지점, 배열 인자 실수 조심
                 hw_iv = 0;
                 for (k = 0; k < 8; k++) hw_iv += ((iv >> k) & 1);
