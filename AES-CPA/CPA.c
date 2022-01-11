@@ -6,7 +6,7 @@
 
 #define DIR "C:\\Users\\louxsoen\\Documents\\부채널연구\\AES CPA\\"
 #define traceFN "a.traces"
-#define ptFN "plaintext.txt"
+#define ctFN "plaintext.txt"
 #define ctFN "ciphertext.txt"
 
 #define startpt	22000
@@ -84,10 +84,10 @@ int main()
 	fclose(rfp);
 
 	// PLAINTEXT
-	sprintf(buf, "%s%s", DIR, ptFN);
+	sprintf(buf, "%s%s", DIR, ctFN);
 	rfp = fopen(buf, "r"); // read binary가 아님. 무조건 r
 	if (rfp == NULL)
-		printf("%s 파일 읽기 오류", ptFN);
+		printf("%s 파일 읽기 오류", ctFN);
 
 	PT = (u8**)calloc(TraceNum, sizeof(u8*)); // 역참조 : 값 넣어주면 안정화
 	for (i = 0; i < TraceNum; i++)

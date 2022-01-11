@@ -7,9 +7,19 @@
 #define DIR "C:\\Users\\louxsoen\\Documents\\부채널연구\\AES CPA\\"
 #define traceFN "a.traces"
 #define ctFN "ciphertext.txt"
-#define ptFN "plaintext.txt"
-#define startpt	68000
+
+#define startpt	65000
 #define endpt 71000
+
+#define MUL2(a) (a<<1)^(a&0x80?0x1b:0)
+#define MUL3(a) MUL2(a)^a
+#define MUL4(a) MUL2((MUL2(a)))
+#define MUL8(a) MUL2((MUL2((MUL2(a)))))
+#define MUL9(a) (MUL8(a))^(a)
+#define MULB(a) (MUL8(a))^(MUL2(a))^(a)
+#define MULD(a) (MUL8(a))^(MUL4(a))^(a)
+#define MULE(a) (MUL8(a))^(MUL4(a))^(MUL2(a))
+
 
 typedef unsigned char u8;
 
@@ -32,19 +42,63 @@ static u8 RSBOX[256] = {
 	0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
 };
 
+void ISB(u8 S[16])
+{
+	S[0] = RSBOX[S[0]]; S[1] = RSBOX[S[1]]; S[2] = RSBOX[S[2]]; S[3] = RSBOX[S[3]];
+	S[4] = RSBOX[S[4]]; S[5] = RSBOX[S[5]]; S[6] = RSBOX[S[6]]; S[7] = RSBOX[S[7]];
+	S[8] = RSBOX[S[8]]; S[9] = RSBOX[S[9]]; S[10] = RSBOX[S[10]]; S[11] = RSBOX[S[11]];
+	S[12] = RSBOX[S[12]]; S[13] = RSBOX[S[13]]; S[14] = RSBOX[S[14]]; S[15] = RSBOX[S[15]];
+}
+void ISR(u8 S[16])
+{
+	u8 temp;
+	temp = S[13]; S[13] = S[9]; S[9] = S[5]; S[5] = S[1]; S[1] = temp;
+	temp = S[2]; S[2] = S[10]; S[10] = temp; temp = S[6]; S[6] = S[14]; S[14] = temp;
+	temp = S[3]; S[3] = S[7]; S[7] = S[11]; S[11] = S[15]; S[15] = temp;
+}
+void IM(u8 S[16])
+{
+	u8 temp[16];
+
+	for (int i = 0; i < 16; i += 4)
+	{
+		temp[i] = MULE(S[i]) ^ MULB(S[i + 1]) ^ MULD(S[i + 2]) ^ MUL9(S[i + 3]);
+		temp[i + 1] = MUL9(S[i]) ^ MULE(S[i + 1]) ^ MULB(S[i + 2]) ^ MULD(S[i + 3]);
+		temp[i + 2] = MULD(S[i]) ^ MUL9(S[i + 1]) ^ MULE(S[i + 2]) ^ MULB(S[i + 3]);
+		temp[i + 3] = MULB(S[i]) ^ MULD(S[i + 1]) ^ MUL9(S[i + 2]) ^ MULE(S[i + 3]);
+	}
+	S[0] = temp[0]; S[1] = temp[1]; S[2] = temp[2]; S[3] = temp[3];
+	S[4] = temp[4]; S[5] = temp[5]; S[6] = temp[6]; S[7] = temp[7];
+	S[8] = temp[8]; S[9] = temp[9]; S[10] = temp[10]; S[11] = temp[11];
+	S[12] = temp[12]; S[13] = temp[13]; S[14] = temp[14]; S[15] = temp[15];
+}
+
 void gotoxy(int x, int y)
 {
 	COORD Pos = { x - 1, y - 1 };
 
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), Pos);
 }
-
+void pprt(u8 S[16])
+{
+	puts("");
+	for (int i = 0; i < 4; i++)
+	{
+		for (int k = 0; k < 4; k++)
+		{
+			printf("%02X ", S[i + k * 4]);
+		}
+		puts("");
+	}
+	puts("");
+}
 int main()
 {
 	u8** CT = NULL;
 	u8		temp[34];
 	u8		iv, hw_iv; // 데이터의 해밍웨이터
-	u8		R10[16];	 // 10라운드 마스터키
+	u8		R10[16] = { 0xf2, 0x98, 0x3f, 0x40, 0x30, 0xed, 0xf6, 0x33, 0x04, 0x91, 0x10, 0x3f, 0xd1, 0xb1, 0x3f, 0xa1 };	 // 추출한 마스터키
+	u8		R9[16] = { 0x73, 0x8D, 0x34, 0x43, 0xC2, 0x75, 0xC9, 0x73, 0x34, 0x7C, 0xE6, 0x0C, 0xD5, 0x20, 0x2F, 0x9E };
 	double	maxCorr; // 상관계수 최대값(PEAK마다 바)
 	double* corr;	// 코렐레이션 값
 	double	HW;	  // 해밍웨이트의 합, 전력량의 합
@@ -91,7 +145,6 @@ int main()
 	for (i = 0; i < TraceNum; i++)
 		CT[i] = (u8*)calloc(16, sizeof(u8));
 
-	// ptFN 가공
 	for (i = 0; i < TraceNum; i++) {
 		fread(temp, sizeof(char), 33, rfp);
 		for (j = 0; j < 16; j++) {
@@ -133,13 +186,28 @@ int main()
 			HW = 0;
 			HW_2 = 0;
 			memset(hw_wt, 0, sizeof(double) * TraceLength);
-			for (j = 0; j < TraceNum; j++) { // hw 구하는 곳
-				iv = RSBOX[CT[j][i] ^ key];
+			for (j = 0; j < TraceNum; j++) { 
+				
+				for(int a = 0 ; a < 16 ; a++)
+				CT[j][a] = RSBOX[CT[j][a] ^ R10[a]];
+				ISR(CT[j]);							// 여기까지 CT'
+				
+				IM(CT[j]);
+				IM(R9);
+				for (int a = 0; a < 16; a++)
+					CT[j][a] ^= key;
+
+				ISR(CT[j]);
+				
+				for (int a = 0; a < 16; a++)
+					CT[j][a] = RSBOX[CT[j][a]];
+
+				iv = CT[j][i];
 				hw_iv = 0;
 				for (k = 0; k < 8; k++) hw_iv += ((iv >> k) & 1);
 
 				HW += hw_iv;
-				HW_2 += hw_iv * hw_iv; // 오버플로우 방지 스카우트
+				HW_2 += hw_iv * hw_iv; 
 
 				for (k = startpt; k < endpt; k++) {
 					hw_wt[k] += hw_iv * WT_data[j][k];
@@ -163,6 +231,14 @@ int main()
 			}
 			gotoxy(25, 25);
 			printf("\rProgress %.1lf%%  |  %02dth Block : %.1lf%%", (((double)key / 255) * 100 / 16) + (100 / 16 * i), i, ((double)key / 255) * 100);
+
+			sprintf(buf, "%scorrtrace\\%02dth_block_%02X.corrtrace", DIR, i, key, key);
+			fflush(stdout);
+			wfp = fopen(buf, "wb");
+			if (wfp == NULL)
+				printf("블록 쓰기 에러\n");
+			fwrite(corr, sizeof(double), TraceLength, wfp);
+			fclose(wfp);
 
 		}
 
