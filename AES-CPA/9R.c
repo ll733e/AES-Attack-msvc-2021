@@ -8,7 +8,7 @@
 #define traceFN "a.traces"
 #define ctFN "ciphertext.txt"
 
-#define startpt	63000
+#define startpt	64000
 #define endpt 71000
 
 #define MUL2(a) (a<<1)^(a&0x80?0x1b:0)
@@ -92,6 +92,7 @@ int main()
 	u8		iv, hw_iv; // 데이터의 해밍웨이터
 	u8		R10[16] = { 0xf2, 0x98, 0x3f, 0x40, 0x30, 0xed, 0xf6, 0x33, 0x04, 0x91, 0x10, 0x3f, 0xd1, 0xb1, 0x3f, 0xa1 };	 // 추출한 마스터키
 	u8		R9[16] = { 0x73, 0x8D, 0x34, 0x43, 0xC2, 0x75, 0xC9, 0x73, 0x34, 0x7C, 0xE6, 0x0C, 0xD5, 0x20, 0x2F, 0x9E };
+	u8		R9S[16];
 	double	maxCorr; // 상관계수 최대값(PEAK마다 바)
 	double* corr;	// 코렐레이션 값
 	double	HW;	  // 해밍웨이트의 합, 전력량의 합
@@ -116,7 +117,6 @@ int main()
 
 	fread(&TraceLength, sizeof(int), 1, rfp); // TraceLength를 int 크키 만큼 한번 읽는다 (4bytes)
 	fread(&TraceNum, sizeof(int), 1, rfp);	  // TraceNum을 int 크기 만큼 한번 읽는다 (4bytes)
-
 	// DATA 동적 할당
 	WT_data = (float**)calloc(TraceNum, sizeof(float*));
 	for (i = 0; i < TraceNum; i++)
@@ -187,9 +187,11 @@ int main()
 				}
 				ISR(CT[j]);							// 여기까지 CT'
 
+
 				IM(CT[j]);
 				ISR(CT[j]);
-
+				//IM(CT[j]);
+				//ISR(CT[j]);
 				iv = RSBOX[CT[j][i] ^ key];
 				hw_iv = 0;
 				for (k = 0; k < 8; k++) hw_iv += ((iv >> k) & 1);
@@ -232,12 +234,18 @@ int main()
 		gotoxy(1, 1);
 		gotoxy(1, i + 5);
 		R9[i] = maxkey;
-		printf("%d Block Before IM : %02X, Corr : %lf\n", i, maxkey, corr);
+		printf("%d Block Before IM : %02X, Corr : %lf\n", i, maxkey, maxCorr);
 	}
+	for (int i = 0; i < 16; i++) R9S[i] = R9[i];
 	IM(R9);
+	ISR(R9);
 	printf("\n\n");
 
-	printf("MASTER KEY : 0x");
+	printf("NO RSBOX\n");
+	for (int i = 0; i < 16; i++)	printf("%02X", R9[i]);
+	puts(""); 
+	printf("RSBOX\n");
+	for (int i = 0; i < 16; i++)	R9[i] = RSBOX[R9[i]];
 	for (int i = 0; i < 16; i++)	printf("%02X", R9[i]);
 	puts("");
 
