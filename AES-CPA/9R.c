@@ -8,7 +8,7 @@
 #define traceFN "a.traces"
 #define ctFN "ciphertext.txt"
 
-#define startpt	65000
+#define startpt	63000
 #define endpt 71000
 
 #define MUL2(a) (a<<1)^(a&0x80?0x1b:0)
@@ -42,21 +42,14 @@ static u8 RSBOX[256] = {
 	0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
 };
 
-void ISB(u8 S[16])
-{
-	S[0] = RSBOX[S[0]]; S[1] = RSBOX[S[1]]; S[2] = RSBOX[S[2]]; S[3] = RSBOX[S[3]];
-	S[4] = RSBOX[S[4]]; S[5] = RSBOX[S[5]]; S[6] = RSBOX[S[6]]; S[7] = RSBOX[S[7]];
-	S[8] = RSBOX[S[8]]; S[9] = RSBOX[S[9]]; S[10] = RSBOX[S[10]]; S[11] = RSBOX[S[11]];
-	S[12] = RSBOX[S[12]]; S[13] = RSBOX[S[13]]; S[14] = RSBOX[S[14]]; S[15] = RSBOX[S[15]];
-}
-void ISR(u8 S[16])
+u8 ISR(u8 S[16])
 {
 	u8 temp;
 	temp = S[13]; S[13] = S[9]; S[9] = S[5]; S[5] = S[1]; S[1] = temp;
 	temp = S[2]; S[2] = S[10]; S[10] = temp; temp = S[6]; S[6] = S[14]; S[14] = temp;
 	temp = S[3]; S[3] = S[7]; S[7] = S[11]; S[11] = S[15]; S[15] = temp;
 }
-void IM(u8 S[16])
+u8 IM(u8 S[16])
 {
 	u8 temp[16];
 
@@ -188,21 +181,16 @@ int main()
 			memset(hw_wt, 0, sizeof(double) * TraceLength);
 			for (j = 0; j < TraceNum; j++) { 
 				
-				for(int a = 0 ; a < 16 ; a++)
-				CT[j][a] = RSBOX[CT[j][a] ^ R10[a]];
+				for (int a = 0; a < 16; a++)
+				{
+					CT[j][a] = RSBOX[CT[j][a] ^ R10[a]];
+				}
 				ISR(CT[j]);							// 여기까지 CT'
-				
+
 				IM(CT[j]);
-				IM(R9);
-				for (int a = 0; a < 16; a++)
-					CT[j][a] ^= key;
-
 				ISR(CT[j]);
-				
-				for (int a = 0; a < 16; a++)
-					CT[j][a] = RSBOX[CT[j][a]];
 
-				iv = CT[j][i];
+				iv = RSBOX[CT[j][i] ^ key];
 				hw_iv = 0;
 				for (k = 0; k < 8; k++) hw_iv += ((iv >> k) & 1);
 
@@ -241,35 +229,16 @@ int main()
 			fclose(wfp);
 
 		}
-
-		if (i == 0)
-		{
-			gotoxy(1, 1);
-			printf("\n\n=====================================\n\n   KEY : ");
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 11);
-			printf("0x%02X", maxkey);
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
-			printf("       CORR :");
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 14);
-			printf("%lf", maxCorr);
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
-		}
-		else if (i <= 16) {
-			gotoxy(10, i + 5);
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 11);
-			printf("0x%02X", maxkey);
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
-			printf("       CORR :");
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 14);
-			printf("%lf", maxCorr);
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
-		}
-		R10[i] = maxkey;
+		gotoxy(1, 1);
+		gotoxy(1, i + 5);
+		R9[i] = maxkey;
+		printf("%d Block Before IM : %02X, Corr : %lf\n", i, maxkey, corr);
 	}
+	IM(R9);
 	printf("\n\n");
 
 	printf("MASTER KEY : 0x");
-	for (int i = 0; i < 16; i++)	printf("%02X", R10[i]);
+	for (int i = 0; i < 16; i++)	printf("%02X", R9[i]);
 	puts("");
 
 	free(CT);
