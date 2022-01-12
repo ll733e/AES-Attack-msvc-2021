@@ -8,8 +8,8 @@
 #define traceFN "a.traces"
 #define ctFN "ciphertext.txt"
 
-#define startpt	64000
-#define endpt 71000
+#define startpt	0
+#define endpt 73200
 
 #define MUL2(a) (a<<1)^(a&0x80?0x1b:0)
 #define MUL3(a) MUL2(a)^a
@@ -66,6 +66,31 @@ u8 IM(u8 S[16])
 	S[12] = temp[12]; S[13] = temp[13]; S[14] = temp[14]; S[15] = temp[15];
 }
 
+void SR(u8 S[16])
+{
+	u8 temp;
+	temp = S[1]; S[1] = S[5]; S[5] = S[9]; S[9] = S[13]; S[13] = temp;
+	temp = S[2]; S[2] = S[10]; S[10] = temp; temp = S[6]; S[6] = S[14]; S[14] = temp;
+	temp = S[15]; S[15] = S[11]; S[11] = S[7]; S[7] = S[3]; S[3] = temp;
+}
+
+void M(u8 S[16])
+{
+	u8 temp[16];
+
+	for (int i = 0; i < 16; i += 4) // temp를 쓰는 이유 : mixcolumns시 state 원본값 손실
+	{
+		temp[i] = MUL2(S[i]) ^ MUL3(S[i + 1]) ^ S[i + 2] ^ S[i + 3];
+		temp[i + 1] = S[i] ^ MUL2(S[i + 1]) ^ MUL3(S[i + 2]) ^ S[i + 3];
+		temp[i + 2] = S[i] ^ S[i + 1] ^ MUL2(S[i + 2]) ^ MUL3(S[i + 3]);
+		temp[i + 3] = MUL3(S[i]) ^ S[i + 1] ^ S[i + 2] ^ MUL2(S[i + 3]);
+	}
+	S[0] = temp[0]; S[1] = temp[1]; S[2] = temp[2]; S[3] = temp[3];
+	S[4] = temp[4]; S[5] = temp[5]; S[6] = temp[6]; S[7] = temp[7];
+	S[8] = temp[8]; S[9] = temp[9]; S[10] = temp[10]; S[11] = temp[11];
+	S[12] = temp[12]; S[13] = temp[13]; S[14] = temp[14]; S[15] = temp[15];
+}
+
 void gotoxy(int x, int y)
 {
 	COORD Pos = { x - 1, y - 1 };
@@ -88,6 +113,7 @@ void pprt(u8 S[16])
 int main()
 {
 	u8** CT = NULL;
+	u8** CT2 = NULL;
 	u8		temp[34];
 	u8		iv, hw_iv; // 데이터의 해밍웨이터
 	u8		R10[16] = { 0xf2, 0x98, 0x3f, 0x40, 0x30, 0xed, 0xf6, 0x33, 0x04, 0x91, 0x10, 0x3f, 0xd1, 0xb1, 0x3f, 0xa1 };	 // 추출한 마스터키
@@ -138,6 +164,10 @@ int main()
 	for (i = 0; i < TraceNum; i++)
 		CT[i] = (u8*)calloc(16, sizeof(u8));
 
+	CT2 = (u8**)calloc(TraceNum, sizeof(u8*)); // 역참조 : 값 넣어주면 안정화
+	for (i = 0; i < TraceNum; i++)
+		CT2[i] = (u8*)calloc(16, sizeof(u8));
+
 	for (i = 0; i < TraceNum; i++) {
 		fread(temp, sizeof(char), 33, rfp);
 		for (j = 0; j < 16; j++) {
@@ -153,6 +183,7 @@ int main()
 			else if (y >= '0' && y <= '9') y -= '0';
 
 			CT[i][j] = x * 16 + y;
+			CT2[i][j] = x * 16 + y;
 		}
 	}
 
@@ -182,16 +213,20 @@ int main()
 			for (j = 0; j < TraceNum; j++) { 
 				
 				for (int a = 0; a < 16; a++)
-				{
+				{	
 					CT[j][a] = RSBOX[CT[j][a] ^ R10[a]];
 				}
 				ISR(CT[j]);							// 여기까지 CT'
-
+				
+				for (int a = 0; a < 16; a++)
+				{
+					CT2[j][a] = CT[j][a];
+				}
 
 				IM(CT[j]);
 				ISR(CT[j]);
-				//IM(CT[j]);
-				//ISR(CT[j]);
+				// "ISR(IM(CT))" + ISR(IM(KEY)) 
+				
 				iv = RSBOX[CT[j][i] ^ key];
 				hw_iv = 0;
 				for (k = 0; k < 8; k++) hw_iv += ((iv >> k) & 1);
@@ -222,7 +257,7 @@ int main()
 			gotoxy(25, 25);
 			printf("\rProgress %.1lf%%  |  %02dth Block : %.1lf%%", (((double)key / 255) * 100 / 16) + (100 / 16 * i), i, ((double)key / 255) * 100);
 
-			sprintf(buf, "%scorrtrace\\%02dth_block_%02X.corrtrace", DIR, i, key, key);
+			sprintf(buf, "%scorrtrace\\%02d_%02X.ct", DIR, i, key);
 			fflush(stdout);
 			wfp = fopen(buf, "wb");
 			if (wfp == NULL)
@@ -236,10 +271,14 @@ int main()
 		R9[i] = maxkey;
 		printf("%d Block Before IM : %02X, Corr : %lf\n", i, maxkey, maxCorr);
 	}
-	for (int i = 0; i < 16; i++) R9S[i] = R9[i];
-	IM(R9);
-	ISR(R9);
-	printf("\n\n");
+	M(R9);
+
+	M(CT2[0]);
+	for (int a = 0; a < 16; a++)
+		R9[a] ^= CT2[0][a];
+		
+	SR(R9);
+	
 
 	printf("NO RSBOX\n");
 	for (int i = 0; i < 16; i++)	printf("%02X", R9[i]);

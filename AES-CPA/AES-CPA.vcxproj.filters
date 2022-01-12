@@ -23,9 +23,6 @@
     <ClCompile Include="9R.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="9rtest.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="keytest.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
