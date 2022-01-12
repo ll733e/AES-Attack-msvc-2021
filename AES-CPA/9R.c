@@ -8,7 +8,7 @@
 #define traceFN "a.traces"
 #define ctFN "ciphertext.txt"
 
-#define startpt	0
+#define startpt	60001
 #define endpt 73200
 
 #define MUL2(a) (a<<1)^(a&0x80?0x1b:0)
@@ -202,6 +202,19 @@ int main()
 		}
 	}
 
+	for (j = 0; j < TraceNum; j++) {
+
+		for (int a = 0; a < 16; a++)
+		{
+			CT[j][a] = RSBOX[CT[j][a] ^ R10[a]];
+		}
+		ISR(CT[j]);							// 여기까지 CT'
+
+
+		IM(CT[j]);
+		ISR(CT[j]);
+	}
+
 	for (int i = 0; i < 16; i++)
 	{
 		maxCorr = 0;
@@ -212,19 +225,15 @@ int main()
 			memset(hw_wt, 0, sizeof(double) * TraceLength);
 			for (j = 0; j < TraceNum; j++) { 
 				
-				for (int a = 0; a < 16; a++)
+				/* for (int a = 0; a < 16; a++)
 				{	
 					CT[j][a] = RSBOX[CT[j][a] ^ R10[a]];
 				}
 				ISR(CT[j]);							// 여기까지 CT'
 				
-				for (int a = 0; a < 16; a++)
-				{
-					CT2[j][a] = CT[j][a];
-				}
 
 				IM(CT[j]);
-				ISR(CT[j]);
+				ISR(CT[j]);*/
 				// "ISR(IM(CT))" + ISR(IM(KEY)) 
 				
 				iv = RSBOX[CT[j][i] ^ key];
@@ -257,7 +266,7 @@ int main()
 			gotoxy(25, 25);
 			printf("\rProgress %.1lf%%  |  %02dth Block : %.1lf%%", (((double)key / 255) * 100 / 16) + (100 / 16 * i), i, ((double)key / 255) * 100);
 
-			sprintf(buf, "%scorrtrace\\%02d_%02X.ct", DIR, i, key);
+			sprintf(buf, "%sct\\%02d_%02X.ct", DIR, i, key);
 			fflush(stdout);
 			wfp = fopen(buf, "wb");
 			if (wfp == NULL)
@@ -271,22 +280,11 @@ int main()
 		R9[i] = maxkey;
 		printf("%d Block Before IM : %02X, Corr : %lf\n", i, maxkey, maxCorr);
 	}
-	M(R9);
-
-	M(CT2[0]);
-	for (int a = 0; a < 16; a++)
-		R9[a] ^= CT2[0][a];
-		
-	SR(R9);
-	
-
-	printf("NO RSBOX\n");
+	ISR(R9);
+	IM(R9);
+	puts("");
 	for (int i = 0; i < 16; i++)	printf("%02X", R9[i]);
 	puts(""); 
-	printf("RSBOX\n");
-	for (int i = 0; i < 16; i++)	R9[i] = RSBOX[R9[i]];
-	for (int i = 0; i < 16; i++)	printf("%02X", R9[i]);
-	puts("");
 
 	free(CT);
 	free(hw_wt);

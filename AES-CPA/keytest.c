@@ -150,7 +150,7 @@ int main()
     u8      key[16] = { 0x00, 0xB2, 0x1D, 0x6F, 0x08, 0xE1, 0x26, 0xB9, 0x12, 0xDA, 0x94, 0x3A, 0xD3, 0xA6, 0xAC, 0xFE };
     
     
-
+/**
     InvMixcolumns(CT);
     InvShiftrows(CT);
     InvMixcolumns(R9);
@@ -166,10 +166,11 @@ int main()
     //Mixcolumns(R9);
 
     prt(R9);
-    /*
-    Shiftrows(key);
-    Mixcolumns(key);
-    InvSubBytes(key);
-    prt(key);
-  */
+    */
+    Mixcolumns(key_);
+    InvMixcolumns(CT);
+    AddRoundKey(key_, CT);
+    Shiftrows(key_);
+    InvSubBytes(key_);
+    prt(key_);
 }

@@ -8,7 +8,7 @@
 #define traceFN "a.traces"
 #define ctFN "ciphertext.txt"
 #define ptFN "plaintext.txt"
-#define startpt	68000
+#define startpt	50001
 #define endpt 71000
 
 typedef unsigned char u8;
@@ -134,6 +134,7 @@ int main()
 			HW_2 = 0;
 			memset(hw_wt, 0, sizeof(double) * TraceLength);
 			for (j = 0; j < TraceNum; j++) { // hw 구하는 곳
+
 				iv = RSBOX[CT[j][i] ^ key];
 				hw_iv = 0;
 				for (k = 0; k < 8; k++) hw_iv += ((iv >> k) & 1);
@@ -163,6 +164,14 @@ int main()
 			}
 			gotoxy(25, 25);
 			printf("\rProgress %.1lf%%  |  %02dth Block : %.1lf%%", (((double)key / 255) * 100 / 16) + (100 / 16 * i), i, ((double)key / 255) * 100);
+
+			sprintf(buf, "%sct\\%02d_%02X.ct", DIR, i, key);
+			fflush(stdout);
+			wfp = fopen(buf, "wb");
+			if (wfp == NULL)
+				printf("블록 쓰기 에러\n");
+			fwrite(corr, sizeof(double), TraceLength, wfp);
+			fclose(wfp);
 
 		}
 
