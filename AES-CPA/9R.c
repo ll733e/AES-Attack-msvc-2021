@@ -280,8 +280,8 @@ int main()
 		R9[i] = maxkey;
 		printf("%d Block Before IM : %02X, Corr : %lf\n", i, maxkey, maxCorr);
 	}
-	ISR(R9);
-	IM(R9);
+	SR(R9);
+	M(R9);
 	puts("");
 	for (int i = 0; i < 16; i++)	printf("%02X", R9[i]);
 	puts(""); 
